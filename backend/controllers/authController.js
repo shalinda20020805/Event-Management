@@ -154,3 +154,89 @@ export const getAllUsers = async (req, res) => {
     });
   }
 };
+
+// Update user profile
+export const updateProfile = async (req, res) => {
+  try {
+    const { username, email, contactNumber, address, currentPassword, newPassword, department, permissions } = req.body;
+    const userId = req.user.id;
+    
+    // Find user
+    const user = await User.findById(userId);
+    
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+    
+    // Check if email is already taken by another user
+    if (email !== user.email) {
+      const existingUser = await User.findOne({ email });
+      if (existingUser) {
+        return res.status(400).json({
+          success: false,
+          message: 'Email is already in use by another account'
+        });
+      }
+    }
+    
+    // Only update password if currentPassword and newPassword are provided
+    if (currentPassword && newPassword) {
+      // Verify current password
+      const isMatch = await user.matchPassword(currentPassword);
+      
+      if (!isMatch) {
+        return res.status(400).json({
+          success: false,
+          message: 'Current password is incorrect'
+        });
+      }
+      
+      // Update password
+      user.password = newPassword;
+    }
+    
+    // Update user fields
+    user.username = username;
+    user.email = email;
+    user.contactNumber = contactNumber;
+    user.address = address;
+    
+    // If user is admin, update admin-specific fields
+    if (user.role === 'admin' && department) {
+      user.department = department;
+    }
+    
+    if (user.role === 'admin' && permissions && Array.isArray(permissions)) {
+      user.permissions = permissions;
+    }
+    
+    await user.save();
+    
+    res.status(200).json({
+      success: true,
+      message: 'Profile updated successfully',
+      user: {
+        id: user._id,
+        username: user.username,
+        email: user.email,
+        contactNumber: user.contactNumber,
+        address: user.address,
+        role: user.role,
+        ...(user.role === 'admin' && {
+          adminId: user.adminId,
+          department: user.department,
+          permissions: user.permissions
+        })
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Server Error',
+      error: error.message
+    });
+  }
+};

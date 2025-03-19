@@ -26,6 +26,17 @@ const MyEvents = () => {
       setLoading(true);
       setError(null);
       
+      // First check server health
+      try {
+        await axios.get('http://localhost:5001/api/health', { timeout: 5000 });
+      } catch (healthError) {
+        console.error('Server health check failed:', healthError);
+        setError('Server appears to be offline. Please try again later.');
+        enqueueSnackbar('Server connection error', { variant: 'error' });
+        setLoading(false);
+        return;
+      }
+      
       const response = await axios.get('http://localhost:5001/api/events/myevents', {
         headers: {
           Authorization: `Bearer ${token}`
@@ -36,7 +47,27 @@ const MyEvents = () => {
       setEvents(response.data.events || []);
     } catch (error) {
       console.error('Error fetching events:', error);
-      setError('Failed to load your events. Please try again later.');
+      
+      if (error.response) {
+        // The server responded with an error status
+        if (error.response.status === 401) {
+          localStorage.removeItem('token');
+          enqueueSnackbar('Session expired. Please login again.', { variant: 'warning' });
+          navigate('/login');
+          return;
+        } else if (error.response.status === 500) {
+          setError('Server error. The development team has been notified.');
+        } else {
+          setError(`Error: ${error.response.data.message || 'Unknown error occurred'}`);
+        }
+      } else if (error.request) {
+        // Request was made but no response received
+        setError('No response from server. Please check your internet connection.');
+      } else {
+        // Something happened in setting up the request
+        setError('Failed to load your events. Please try again later.');
+      }
+      
       enqueueSnackbar('Failed to load your events', { variant: 'error' });
     } finally {
       setLoading(false);

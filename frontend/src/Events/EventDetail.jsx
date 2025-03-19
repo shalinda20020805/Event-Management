@@ -162,7 +162,7 @@ const EventDetail = () => {
               </div>
               <div>
                 <p className="text-sm text-gray-500">Price</p>
-                <p className="font-medium">{event.price > 0 ? `$${event.price}` : 'Free'}</p>
+                <p className="font-medium">{event.price > 0 ? `LKR ${event.price}` : 'Free'}</p>
               </div>
               <div>
                 <p className="text-sm text-gray-500">Capacity</p>

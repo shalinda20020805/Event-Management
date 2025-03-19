@@ -4,16 +4,16 @@ import axios from "axios";
 import { useSnackbar } from "notistack";
 
 const ManageFeedback = () => {
-  const [events, setEvents] = useState([]);
+  const [feedbacks, setFeedbacks] = useState([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
   const { enqueueSnackbar } = useSnackbar();
 
   useEffect(() => {
-    fetchEvents();
+    fetchFeedbacks();
   }, []);
 
-  const fetchEvents = async () => {
+  const fetchFeedbacks = async () => {
     try {
       const token = localStorage.getItem("token");
 
@@ -22,18 +22,39 @@ const ManageFeedback = () => {
         return;
       }
 
-      const response = await axios.get("http://localhost:5001/api/events", {
+      const response = await axios.get("http://localhost:5001/api/feedback", {
         headers: {
           Authorization: `Bearer ${token}`,
         },
       });
 
-      setEvents(response.data.events);
+      setFeedbacks(response.data.feedback);
     } catch (error) {
-      console.error("Error fetching events:", error);
-      enqueueSnackbar("Failed to load events", { variant: "error" });
+      console.error("Error fetching feedback:", error);
+      enqueueSnackbar("Failed to load feedback", { variant: "error" });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDeleteFeedback = async (feedbackId) => {
+    if (!window.confirm("Are you sure you want to delete this feedback?")) {
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem("token");
+      await axios.delete(`http://localhost:5001/api/feedback/${feedbackId}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      setFeedbacks((prev) => prev.filter((f) => f._id !== feedbackId));
+      enqueueSnackbar("Feedback deleted successfully!", { variant: "success" });
+    } catch (error) {
+      console.error("Error deleting feedback:", error);
+      enqueueSnackbar("Failed to delete feedback", { variant: "error" });
     }
   };
 
@@ -41,64 +62,7 @@ const ManageFeedback = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
     enqueueSnackbar("Logged out successfully", { variant: "success" });
-    window.location.href = '/login'; // Replace navigate with direct URL redirect with refresh
-  };
-
-  const formatDate = (dateString) => {
-    const options = { year: "numeric", month: "long", day: "numeric" };
-    return new Date(dateString).toLocaleDateString(undefined, options);
-  };
-
-  const handleApproveReject = async (eventId, isApproved) => {
-    try {
-      const token = localStorage.getItem("token");
-
-      await axios.put(
-        `http://localhost:5001/api/events/${eventId}/approve`,
-        { isApproved },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-
-      setEvents((prevEvents) =>
-        prevEvents.map((event) =>
-          event._id === eventId ? { ...event, isApproved } : event
-        )
-      );
-
-      enqueueSnackbar(
-        isApproved ? "Event approved successfully!" : "Event rejected successfully!",
-        { variant: "success" }
-      );
-    } catch (error) {
-      console.error("Error updating event:", error);
-      enqueueSnackbar("Failed to update event status", { variant: "error" });
-    }
-  };
-
-  const handleDeleteEvent = async (eventId) => {
-    if (!window.confirm("Are you sure you want to delete this event?")) {
-      return;
-    }
-
-    try {
-      const token = localStorage.getItem("token");
-
-      await axios.delete(`http://localhost:5001/api/events/${eventId}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      setEvents((prevEvents) => prevEvents.filter((event) => event._id !== eventId));
-      enqueueSnackbar("Event deleted successfully!", { variant: "success" });
-    } catch (error) {
-      console.error("Error deleting event:", error);
-      enqueueSnackbar("Failed to delete event", { variant: "error" });
-    }
+    window.location.href = '/login';
   };
 
   if (loading) {
@@ -124,18 +88,16 @@ const ManageFeedback = () => {
           <Link to="/admin/users" className="flex items-center px-6 py-3 text-gray-300 hover:bg-gray-800 hover:text-gray-100">
             <span className="ml-3">Users</span>
           </Link>
-          <Link to="/admin/events" className="flex items-center px-6 py-3 bg-gray-800 text-gray-100">
+          <Link to="/admin/events" className="flex items-center px-6 py-3 text-gray-300 hover:bg-gray-800 hover:text-gray-100">
             <span className="ml-3">Events</span>
           </Link>
-          <Link to="/admin/approvals" className="flex items-center px-6 py-3 text-gray-300 hover:bg-gray-800 hover:text-gray-100">
-            <span className="ml-3">Pending Approvals</span>
-          </Link>
-           <Link to="/managefeedback" className="flex items-center px-6 py-3 text-gray-300 hover:bg-gray-800 hover:text-gray-100">
+          <Link to="/admin/payment-approvals" className="flex items-center px-6 py-3 text-gray-300 hover:bg-gray-800 hover:text-gray-100">
+                                <span className="ml-3">Payment Approvals</span>
+                              </Link>
+           <Link to="/managefeedback" className="flex items-center px-6 py-3 bg-gray-800 text-gray-100">
                       <span className="ml-3">Feedback Manage</span>
                     </Link>
-          <Link to="/admin/settings" className="flex items-center px-6 py-3 text-gray-300 hover:bg-gray-800 hover:text-gray-100">
-            <span className="ml-3">Settings</span>
-          </Link>
+          
           <button onClick={handleLogout} className="flex items-center px-6 py-3 text-gray-300 hover:bg-gray-800 hover:text-gray-100 w-full text-left">
             <span className="ml-3">Logout</span>
           </button>
@@ -145,36 +107,40 @@ const ManageFeedback = () => {
       {/* Main Content */}
       <div className="ml-64 p-8">
         <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-bold">Manage Feedbacks</h1>
-          <div className="flex space-x-4">
-            <Link to="/create-event" className="px-6 py-3 bg-blue-600 text-white rounded hover:bg-blue-700">
-              Create New Event
-            </Link>
-          </div>
+          <h1 className="text-3xl font-bold">Manage Feedback</h1>
         </div>
 
-        {/* Events List */}
+        {/* Feedback List */}
         <div className="bg-white rounded-lg shadow overflow-hidden">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date & Time</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Message</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {events.length > 0 ? (
-                events.map((event) => (
-                  <tr key={event._id}>
-                    <td className="px-6 py-4">{event.title}</td>
-                    <td className="px-6 py-4">{formatDate(event.date)}</td>
-                    <td className="px-6 py-4">{event.organizer?.username || "N/A"}</td>
-                    <td className="px-6 py-4">{event.isApproved ? "Approved" : "Pending"}</td>
+              {feedbacks.length > 0 ? (
+                feedbacks.map((feedback) => (
+                  <tr key={feedback._id}>
+                    <td className="px-6 py-4 whitespace-nowrap">{feedback.name}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">{feedback.email}</td>
                     <td className="px-6 py-4">
-                      <button onClick={() => handleDeleteEvent(event._id)} className="text-red-600 hover:text-red-900">
+                      <div className="max-w-xs overflow-hidden overflow-ellipsis">
+                        {feedback.message}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {new Date(feedback.createdAt).toLocaleDateString()}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <button 
+                        onClick={() => handleDeleteFeedback(feedback._id)}
+                        className="text-red-600 hover:text-red-900"
+                      >
                         Delete
                       </button>
                     </td>
@@ -183,7 +149,7 @@ const ManageFeedback = () => {
               ) : (
                 <tr>
                   <td colSpan="5" className="px-6 py-4 text-center text-gray-500">
-                    No events found
+                    No feedback found
                   </td>
                 </tr>
               )}

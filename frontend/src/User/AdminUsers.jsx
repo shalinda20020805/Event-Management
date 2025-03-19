@@ -78,12 +78,12 @@ const AdminUsers = () => {
           <Link to="/admin/events" className="flex items-center px-6 py-3 text-gray-300 hover:bg-gray-800 hover:text-gray-100">
             <span className="ml-3">Events</span>
           </Link>
-          <Link to="/admin/approvals" className="flex items-center px-6 py-3 text-gray-300 hover:bg-gray-800 hover:text-gray-100">
-            <span className="ml-3">Approvals</span>
-          </Link>
-          <Link to="/admin/settings" className="flex items-center px-6 py-3 text-gray-300 hover:bg-gray-800 hover:text-gray-100">
-            <span className="ml-3">Settings</span>
-          </Link>
+         <Link to="/admin/payment-approvals" className="flex items-center px-6 py-3 text-gray-300 hover:bg-gray-800 hover:text-gray-100">
+                     <span className="ml-3">Payment Approvals</span>
+                   </Link>
+           <Link to="/managefeedback" className="flex items-center px-6 py-3 text-gray-300 hover:bg-gray-800 hover:text-gray-100">
+                      <span className="ml-3">Feedback Manage</span>
+                    </Link>
           <button 
             onClick={handleLogout} 
             className="flex items-center px-6 py-3 text-gray-300 hover:bg-gray-800 hover:text-gray-100 w-full text-left"
@@ -97,7 +97,7 @@ const AdminUsers = () => {
       <div className="ml-64 p-8">
         {/* Header */}
         <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-bold">Manage Users</h1>
+          <h1 className="text-3xl font-bold">Customer </h1>
           <div className="flex space-x-2">
             <Link to="/admin/add-user" className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
               Add New User

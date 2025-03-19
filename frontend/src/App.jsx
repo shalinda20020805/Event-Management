@@ -10,12 +10,16 @@ import ProtectedRoute from './components/ProtectedRoute';
 import { AuthProvider } from './context/AuthContext';
 import Header from './components/Header';
 import PaymentCart from './pages/payment/PaymentCart';
-import PendingApproval from './pages/payment/PendingApproval'; // Add this import
-import PaymentApproval from './pages/admin/PaymentApproval'; // Add this import
 import Feedback from './pages/feedback/feedback';
 import Managefeedback from './pages/feedback/managefeedback';
 import Feedbackview from './pages/feedback/feedbackview';
-
+import UpdateProfile from './User/UpdateProfile';
+import AdminUpdateProfile from './User/AdminUpdateProfile';
+import PendingApproval from './pages/payment/PendingApproval';
+import PaymentApproval from './pages/admin/PaymentApproval';
+import PaymentDetails from './pages/admin/PaymentDetails';
+import UserPaymentHistory from './pages/payment/UserPaymentHistory';
+import EditPayment from './pages/payment/EditPayment';
 // Import Event Components
 import CreateEvent from './Events/CreateEvent';
 import MyEvents from './Events/MyEvents';
@@ -23,6 +27,9 @@ import AdminEvents from './Events/AdminEvents';
 import EventDetail from './Events/EventDetail';
 import BrowseEvents from './Events/BrowseEvents';
 import EventRegistration from './Events/EventRegistration';
+import UpdateFeedback from './pages/feedback/UpdateFeedback';
+import UserFeedbackView from './pages/feedback/UserFeedbackView';
+import EditEvent from './Events/EditEvent';
 
 const App = () => {
   const location = useLocation();
@@ -39,20 +46,25 @@ const App = () => {
             <Route path='/login' element={<Login />} />
             <Route path='/register' element={<Register />} />
             <Route path='/payment' element={<PaymentCart />} />
-            <Route path='/pending-approval' element={<PendingApproval />} /> {/* Add this route */}
+            <Route path='/pending-approval' element={<PendingApproval />} />
             <Route path='/events' element={<BrowseEvents />} />
-            <Route path='/events/:id' element={<EventDetail />} /> {/* Make sure this is outside of ProtectedRoute */}
-            { <Route path='/feedback' element={<Feedback />} /> }
-            { <Route path='/managefeedback' element={<Managefeedback />} /> }
-            { <Route path='/feedbackview' element={<Feedbackview />} /> }
+            <Route path='/events/:id' element={<EventDetail />} />
+            <Route path='/feedback' element={<Feedback />} />
+            <Route path='/managefeedback' element={<Managefeedback />} />
+            <Route path='/feedbackview' element={<Feedbackview />} />
+            <Route path='/update-feedback' element={<UpdateFeedback />} />
+            <Route path='/user-feedback' element={<UserFeedbackView />} />
 
             {/* User routes */}
             <Route element={<ProtectedRoute />}>
               <Route path='/dashboard' element={<UserDashboard />} />
+              <Route path='/update-profile' element={<UpdateProfile />} />
               <Route path='/create-event' element={<CreateEvent />} />
               <Route path='/my-events' element={<MyEvents />} />
-              <Route path='/events/:id/edit' element={<CreateEvent />} />
+              <Route path='/events/:id/edit' element={<EditEvent />} />
               <Route path="/events/:id/register" element={<EventRegistration />} />
+              <Route path="/payments/history" element={<UserPaymentHistory />} />
+              <Route path="/payments/:paymentId/edit" element={<EditPayment />} />
             </Route>
             
             {/* Admin routes */}
@@ -60,7 +72,10 @@ const App = () => {
               <Route path='/admin-dashboard' element={<AdminDashboard />} />
               <Route path='/admin/users' element={<AdminUsers />} />
               <Route path='/admin/events' element={<AdminEvents />} />
-              <Route path='/admin/approvals' element={<PaymentApproval />} /> {/* Update this route */}
+              <Route path='/admin/approvals' element={<AdminEvents />} />
+              <Route path='/admin/payment-approvals' element={<PaymentApproval />} />
+              <Route path='/admin/payments/:id' element={<PaymentDetails />} />
+              <Route path='/admin/profile' element={<AdminUpdateProfile />} />
               <Route path='/admin/events/:id' element={<EventDetail />} />
             </Route>
           </Routes>
@@ -71,3 +86,5 @@ const App = () => {
 };
 
 export default App;
+
+

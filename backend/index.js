@@ -6,6 +6,8 @@ import { fileURLToPath } from 'url';
 import { PORT, mongoDBURL, JWT_SECRET } from './config.js';
 import authRoutes from './routes/authRoutes.js';
 import eventRoutes from './routes/eventRoutes.js';
+import paymentRoutes from './routes/paymentRoutes.js';
+import feedbackRoutes from './routes/feedback.js';  // Add feedback routes import
 
 // Get directory name (ES module version of __dirname)
 const __filename = fileURLToPath(import.meta.url);
@@ -19,9 +21,8 @@ const app = express();
 // Middleware
 app.use(express.json());
 app.use(cors({
-  origin: ['http://localhost:3000', 'http://localhost:5173'], // Allow frontend to access the backend
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  origin: 'http://localhost:5173', // Update with your frontend URL
+  credentials: true
 }));
 
 // Create uploads directory if it doesn't exist
@@ -39,6 +40,13 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/events', eventRoutes);
+app.use('/api/payments', paymentRoutes);
+app.use('/api/feedback', feedbackRoutes);  // Configure feedback routes
+
+// Health check endpoint
+app.get('/api/health', (req, res) => {
+  res.status(200).json({ status: 'ok', message: 'Server is running' });
+});
 
 // Default route
 app.get('/', (req, res) => {

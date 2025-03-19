@@ -1,33 +1,84 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useSnackbar } from 'notistack';
-import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import './PaymentForm.css';
 
-function PaymentForm() {
-  const { enqueueSnackbar } = useSnackbar();
-  const location = useLocation();
+function EditPayment() {
+  const { paymentId } = useParams();
   const navigate = useNavigate();
-  // Get event registration data from location state if available
-  const eventRegistrationData = location.state?.registrationData || {};
+  const { enqueueSnackbar } = useSnackbar();
   
+  const [payment, setPayment] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   const [formData, setFormData] = useState({
     cardNumber: '',
     cardHolder: '',
     expiryDate: '',
-    cvv: '',
-    amount: location.state?.amount || ''
+    cvv: ''
   });
 
   const [errors, setErrors] = useState({
     cardNumber: '',
     cardHolder: '',
     expiryDate: '',
-    cvv: '',
-    amount: ''
+    cvv: ''
   });
 
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  useEffect(() => {
+    const fetchPayment = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        
+        if (!token) {
+          navigate('/login');
+          return;
+        }
+        
+        // First get user's payment history
+        const response = await axios.get('http://localhost:5001/api/payments/user-history', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        
+        if (response.data.success) {
+          const foundPayment = response.data.payments.find(p => p._id === paymentId);
+          
+          if (!foundPayment) {
+            enqueueSnackbar('Payment not found', { variant: 'error' });
+            navigate('/payments/history');
+            return;
+          }
+          
+          if (foundPayment.status !== 'rejected') {
+            enqueueSnackbar('Only rejected payments can be edited', { variant: 'warning' });
+            navigate('/payments/history');
+            return;
+          }
+          
+          setPayment(foundPayment);
+          // Pre-fill the form with existing payment data
+          // Card number will be masked
+          setFormData({
+            cardNumber: '',  // Can't show full card number for security
+            cardHolder: foundPayment.cardDetails.cardHolder,
+            expiryDate: foundPayment.cardDetails.expiryDate,
+            cvv: ''
+          });
+        } else {
+          enqueueSnackbar('Failed to load payment details', { variant: 'error' });
+        }
+      } catch (error) {
+        console.error('Error fetching payment:', error);
+        enqueueSnackbar('Failed to load payment details', { variant: 'error' });
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchPayment();
+  }, [paymentId, navigate, enqueueSnackbar]);
 
   const validateCardNumber = (cardNumber) => {
     const cardNumberRegex = /^[0-9]{16}$/;
@@ -64,10 +115,6 @@ function PaymentForm() {
   const validateCVV = (cvv) => {
     const cvvRegex = /^[0-9]{3,4}$/;
     return cvvRegex.test(cvv) ? '' : 'CVV must be 3 or 4 digits';
-  };
-
-  const validateAmount = (amount) => {
-    return amount > 0 ? '' : 'Amount must be greater than zero';
   };
 
   const handleInputChange = (e) => {
@@ -107,9 +154,6 @@ function PaymentForm() {
       case 'cvv':
         errorMessage = validateCVV(value);
         break;
-      case 'amount':
-        errorMessage = validateAmount(value);
-        break;
       default:
         break;
     }
@@ -122,8 +166,8 @@ function PaymentForm() {
       cardNumber: validateCardNumber(formData.cardNumber),
       cardHolder: validateCardHolder(formData.cardHolder),
       expiryDate: validateExpiryDate(formData.expiryDate),
-      cvv: validateCVV(formData.cvv),
-      amount: validateAmount(formData.amount)
+      // Make CVV optional when editing rejected payments
+      cvv: formData.cvv ? validateCVV(formData.cvv) : ''
     };
     
     setErrors(newErrors);
@@ -143,22 +187,23 @@ function PaymentForm() {
           navigate('/login');
           return;
         }
-
+        
         // Prepare payment data for API
-        const paymentData = {
-          eventId: eventRegistrationData.eventId,
-          amount: parseFloat(formData.amount),
+        const updatedPaymentData = {
           cardNumber: formData.cardNumber.replace(/\s/g, ''),
           cardHolder: formData.cardHolder,
-          expiryDate: formData.expiryDate,
-          cvv: formData.cvv,
-          numberOfTickets: eventRegistrationData.numberOfTickets || 1,
-          specialRequirements: eventRegistrationData.specialRequirements || ''
+          expiryDate: formData.expiryDate
         };
         
-        // Make the API call
-        const response = await axios.post('http://localhost:5001/api/payments/submit', 
-          paymentData,
+        // Only include CVV if provided
+        if (formData.cvv) {
+          updatedPaymentData.cvv = formData.cvv;
+        }
+        
+        // Make the API call to update the payment
+        const response = await axios.put(
+          `http://localhost:5001/api/payments/${paymentId}`,
+          updatedPaymentData,
           {
             headers: {
               'Content-Type': 'application/json',
@@ -168,21 +213,18 @@ function PaymentForm() {
         );
 
         if (response.data.success) {
-          enqueueSnackbar('Payment submitted successfully! Waiting for admin approval.', { 
+          enqueueSnackbar('Payment details updated successfully! It is now pending approval.', { 
             variant: 'success' 
           });
           
-          navigate('/pending-approval', { 
-            state: { 
-              paymentId: response.data.payment.id 
-            } 
-          });
+          navigate('/payments/history');
         }
       } catch (error) {
-        console.error('Payment submission error:', error);
-        let errorMessage = 'Failed to process payment';
+        console.error('Payment update error:', error);
+        let errorMessage = 'Failed to update payment';
         
         if (error.response) {
+          console.log('Error response:', error.response.data);
           errorMessage = error.response.data.message || errorMessage;
         }
         
@@ -195,50 +237,65 @@ function PaymentForm() {
     }
   };
 
-  const getInputStyle = (fieldName) => ({
-    width: '100%',
-    padding: '8px',
-    border: errors[fieldName] ? '1px solid red' : '1px solid #ddd',
-    borderRadius: '4px',
-    fontSize: '14px'
-  });
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="loader"></div>
+      </div>
+    );
+  }
 
-  const errorStyle = {
-    color: 'red',
-    fontSize: '12px',
-    marginTop: '5px'
-  };
+  if (!payment) {
+    return (
+      <div className="payment-not-found">
+        <div className="not-found-icon">
+          <i className="fas fa-exclamation-triangle"></i>
+        </div>
+        <h2>Payment Not Found</h2>
+        <p>We couldn't find the payment you're looking for.</p>
+        <button
+          onClick={() => navigate('/payments/history')}
+          className="back-btn"
+        >
+          Back to Payment History
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="payment-page-container">
       <div className="payment-form-container">
         <div className="payment-header">
-          <h2>Payment Details</h2>
-          <div className="payment-secure-badge">
-            <i className="fas fa-lock"></i> Secure Payment
+          <h2>Edit Payment</h2>
+          <div className="rejected-badge">
+            <i className="fas fa-exclamation-circle"></i> Payment Rejected
           </div>
         </div>
         
-        {eventRegistrationData.eventName && (
+        {payment.event?.title && (
           <div className="event-info-card">
             <div className="event-info-header">Event Summary</div>
             <div className="event-info-content">
               <div className="event-info-row">
                 <span className="event-info-label">Event:</span>
-                <span className="event-info-value">{eventRegistrationData.eventName}</span>
+                <span className="event-info-value">{payment.event.title}</span>
               </div>
               <div className="event-info-row">
                 <span className="event-info-label">Date:</span>
-                <span className="event-info-value">{eventRegistrationData.eventDate}</span>
+                <span className="event-info-value">{new Date(payment.event.date).toLocaleDateString()}</span>
               </div>
               <div className="event-info-row">
                 <span className="event-info-label">Tickets:</span>
-                <span className="event-info-value">{eventRegistrationData.numberOfTickets}</span>
+                <span className="event-info-value">{payment.numberOfTickets || 1}</span>
               </div>
               <div className="event-info-row total-row">
                 <span className="event-info-label">Total:</span>
-                <span className="event-info-value total-amount">LKR {eventRegistrationData.totalAmount}</span>
+                <span className="event-info-value total-amount">LKR {payment.amount.toFixed(2)}</span>
               </div>
+            </div>
+            <div className="rejection-reason">
+              <p>Please update your payment details to resubmit your payment</p>
             </div>
           </div>
         )}
@@ -306,7 +363,7 @@ function PaymentForm() {
                     onChange={handleInputChange}
                     placeholder="123"
                     maxLength={4}
-                    required
+                    // Optional in edit mode
                   />
                   <span className="cvv-tooltip" title="3-digit code on back of your card">?</span>
                 </div>
@@ -315,29 +372,11 @@ function PaymentForm() {
             </div>
           </div>
 
-          <div className="form-section">
-            <div className="section-title">Payment Amount</div>
-            <div className="form-group amount-group">
-              <label>Amount (LKR)</label>
-              <input
-                type="number"
-                name="amount"
-                value={formData.amount}
-                onChange={handleInputChange}
-                placeholder="1500.00"
-                step="0.01"
-                required
-                readOnly={location.state?.amount}
-              />
-              {errors.amount && <div className="error">{errors.amount}</div>}
-            </div>
-          </div>
-
           <div className="button-group">
             <button
               type="button"
               className="cancel-btn"
-              onClick={() => navigate(-1)}
+              onClick={() => navigate('/payments/history')}
               style={{ backgroundColor: '#6c757d', color: 'white', border: 'none' }}
             >
               Cancel
@@ -354,7 +393,7 @@ function PaymentForm() {
                   Processing...
                 </>
               ) : (
-                'Submit Payment'
+                'Update Payment'
               )}
             </button>
           </div>
@@ -362,13 +401,8 @@ function PaymentForm() {
           <div className="payment-notes">
             <p className="note">
               <i className="fas fa-info-circle"></i>
-              Your registration will be confirmed after payment approval by the administrator.
+              Your updated payment will need to be approved again by the administrator.
             </p>
-            <div className="payment-security">
-              <span className="security-icon encryption"></span>
-              <span className="security-icon pci"></span>
-              <span className="security-text">256-bit encryption | PCI DSS Compliant</span>
-            </div>
           </div>
         </form>
       </div>
@@ -376,4 +410,4 @@ function PaymentForm() {
   );
 }
 
-export default PaymentForm;
+export default EditPayment;

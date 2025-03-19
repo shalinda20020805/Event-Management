@@ -241,12 +241,19 @@ export const updateEvent = async (req, res) => {
       });
     }
 
-    // If regular user is updating, set approval back to false
-    if (req.user.role !== 'admin') {
-      req.body.isApproved = false;
+    const updateData = { ...req.body };
+    
+    // Handle image upload if a new file is provided
+    if (req.file) {
+      updateData.image = `/uploads/events/${req.file.filename}`;
     }
 
-    event = await Event.findByIdAndUpdate(req.params.id, req.body, {
+    // If regular user is updating, set approval back to false
+    if (req.user.role !== 'admin') {
+      updateData.isApproved = false;
+    }
+
+    event = await Event.findByIdAndUpdate(req.params.id, updateData, {
       new: true,
       runValidators: true
     });

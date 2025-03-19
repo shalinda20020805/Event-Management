@@ -1,4 +1,7 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
+import axios from "axios";
+import { useSnackbar } from "notistack";
 
 const FeedbackCard = ({ feedback }) => {
   const cardStyle = {
@@ -34,12 +37,6 @@ const FeedbackCard = ({ feedback }) => {
     marginBottom: "4px",
   };
 
-  const ratingStyle = {
-    fontSize: "13px",
-    fontWeight: "bold",
-    color: feedback.rating >= 4 ? "green" : feedback.rating >= 2 ? "orange" : "red",
-  };
-
   return (
     <div
       style={cardStyle}
@@ -51,29 +48,40 @@ const FeedbackCard = ({ feedback }) => {
       <p style={textStyle}>
         <strong>Email:</strong> {feedback.email}
       </p>
-     
       <p style={textStyle}>
         <strong>Message:</strong> {feedback.message}
+      </p>
+      <p style={textStyle}>
+        <strong>Date:</strong> {new Date(feedback.createdAt).toLocaleDateString()}
       </p>
     </div>
   );
 };
 
 const FeedbackView = () => {
-  const feedbackData = [
-    { name: "John Doe", email: "john@example.com", message: "Great service!" },
-    { name: "Jane Smith", email: "jane@example.com",  message: "It was okay, needs improvement." },
-    { name: "Alice Brown", email: "alice@example.com",  message: "Very satisfied with the experience!" },
-    { name: "Robert Williams", email: "robert@example.com",  message: "Highly recommended!" },
-    { name: "Emma Johnson", email: "emma@example.com",  message: "Could be better." },
-    { name: "Michael Davis", email: "michael@example.com",  message: "Impressed by the service!" },
-    { name: "Sophia Wilson", email: "sophia@example.com",  message: "Average experience." },
-    { name: "Liam Brown", email: "liam@example.com", message: "Will use this again!" },
-    { name: "Olivia Garcia", email: "olivia@example.com",  message: "Nice and smooth process." },
-    { name: "Mason Martin", email: "mason@example.com",  message: "It was okay." },
-    { name: "Isabella Lee", email: "isabella@example.com", message: "Fantastic experience!" },
-    { name: "Ethan Thomas", email: "ethan@example.com",  message: "Good customer support!" },
-  ];
+  const [feedbacks, setFeedbacks] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const { enqueueSnackbar } = useSnackbar();
+
+  useEffect(() => {
+    const fetchFeedbacks = async () => {
+      try {
+        const response = await axios.get('http://localhost:5001/api/feedback');
+        if (response.data && response.data.feedback) {
+          setFeedbacks(response.data.feedback);
+        }
+      } catch (error) {
+        console.error('Error fetching feedback:', error);
+        setError(error.response?.data?.message || 'Failed to load feedback');
+        enqueueSnackbar('Failed to load feedback', { variant: 'error' });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchFeedbacks();
+  }, [enqueueSnackbar]);
 
   const containerStyle = {
     display: "grid",
@@ -94,13 +102,87 @@ const FeedbackView = () => {
     marginBottom: "20px",
   };
 
+  const buttonContainerStyle = {
+    display: "flex",
+    justifyContent: "flex-end",
+    padding: "20px 30px",
+  };
+
+  const buttonStyle = {
+    padding: "10px 20px",
+    backgroundColor: "#4F46E5",
+    color: "white",
+    border: "none",
+    borderRadius: "6px",
+    fontSize: "16px",
+    cursor: "pointer",
+    textDecoration: "none",
+    transition: "background-color 0.3s ease",
+  };
+
+  if (loading) {
+    return (
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        height: '100vh' 
+      }}>
+        <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-blue-500 border-solid"></div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        height: '100vh',
+        gap: '1rem'
+      }}>
+        <p style={{ color: '#EF4444' }}>{error}</p>
+        <button 
+          onClick={() => window.location.reload()}
+          style={{
+            ...buttonStyle,
+            backgroundColor: '#3B82F6'
+          }}
+        >
+          Try Again
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div>
-      <h2 style={headerStyle}>📝 Customer Feedback</h2>
+      <div style={buttonContainerStyle}>
+        <Link to="/feedback" style={buttonStyle}>
+          ✍️ Create Feedback
+        </Link>
+      </div>
+      <h2 style={headerStyle}>📝 All Customer Feedback</h2>
       <div style={containerStyle}>
-        {feedbackData.map((item, index) => (
-          <FeedbackCard key={index} feedback={item} />
-        ))}
+        {feedbacks.length > 0 ? (
+          feedbacks.map((feedback) => (
+            <FeedbackCard 
+              key={feedback._id} 
+              feedback={feedback}
+            />
+          ))
+        ) : (
+          <div style={{
+            textAlign: 'center',
+            width: '100%',
+            padding: '2rem',
+            color: '#666'
+          }}>
+            No feedback available yet. Be the first to leave feedback!
+          </div>
+        )}
       </div>
     </div>
   );
